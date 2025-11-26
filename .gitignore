@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Data files
+data/
+*.tar.gz
+
+# Logs and results
+logs/
+
+# Model weights (optional - these are large)
+weight/
+*.tar
+*.pth
+*.pt
+
+# Isolation data (optional - can be regenerated)
+isolation_data/
+*.npy
