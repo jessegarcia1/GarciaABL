@@ -5,14 +5,28 @@ from torch.utils.data import DataLoader
 from config import get_arguments
 from tqdm import tqdm
 
+from torch.utils.data import Dataset
+
+class NumpyDataset(Dataset):
+    def __init__(self, data_path):
+        self.data = np.load(data_path, allow_pickle=True)
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        img, label = self.data[idx]
+        # Convert to tensors
+        img = torch.tensor(img, dtype=torch.float32)
+        label = torch.tensor(label, dtype=torch.long)
+        return img, label
+
 
 def compute_loss_value(opt, poisoned_data, model_ascent):
     # Calculate loss value per example
     # Define loss function
-    if opt.cuda:
-        criterion = nn.CrossEntropyLoss().cuda()
-    else:
-        criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss().to(opt.device)
+
 
     model_ascent.eval()
     losses_record = []
@@ -23,9 +37,9 @@ def compute_loss_value(opt, poisoned_data, model_ascent):
                                         )
 
     for idx, (img, target) in tqdm(enumerate(example_data_loader, start=0)):
-        if opt.cuda:
-            img = img.cuda()
-            target = target.cuda()
+        
+        img = img.to(opt.device)
+        target = target.to(opt.device)
 
         with torch.no_grad():
             output = model_ascent(img)
@@ -72,17 +86,17 @@ def isolate_data(opt, poisoned_data, losses_idx):
             other_examples.append((img, target))
 
     # Save data
-    if opt.save:
-        data_path_isolation = os.path.join(opt.isolate_data_root, "{}_isolation{}%_examples.npy".format(opt.model_name,
+    if opt.save: # SAVING THE BACKDOORED EXAMPLES HERE
+        data_path_isolation = os.path.join(opt.isolate_data_root, "JESSE_{}_isolation{}%_examples.npy".format(opt.model_name,
                                                                                              opt.isolation_ratio * 100))
-        data_path_other = os.path.join(opt.isolate_data_root, "{}_other{}%_examples.npy".format(opt.model_name,
+        data_path_other = os.path.join(opt.isolate_data_root, "JESSE_{}_other{}%_examples.npy".format(opt.model_name,
                                                                                              100 - opt.isolation_ratio * 100))
         if os.path.exists(data_path_isolation):
             raise ValueError('isolation data already exists')
         else:
             # save the isolation examples
-            np.save(data_path_isolation, isolation_examples)
-            np.save(data_path_other, other_examples)
+            np.save(data_path_isolation, np.array(isolation_examples, dtype=object), allow_pickle=True)
+            np.save(data_path_other, np.array(other_examples, dtype=object), allow_pickle=True)
 
     print('Finish collecting {} isolation examples: '.format(len(isolation_examples)))
     print('Finish collecting {} other examples: '.format(len(other_examples)))
@@ -96,9 +110,9 @@ def train_step(opt, train_loader, model_ascent, optimizer, criterion, epoch):
     model_ascent.train()
 
     for idx, (img, target) in enumerate(train_loader, start=1):
-        if opt.cuda:
-            img = img.cuda()
-            target = target.cuda()
+       
+        img = img.to(opt.device)
+        target = target.to(opt.device)
 
         if opt.gradient_ascent_type == 'LGA':
             output = model_ascent(img)
@@ -141,9 +155,9 @@ def test(opt, test_clean_loader, test_bad_loader, model_ascent, criterion, epoch
     model_ascent.eval()
 
     for idx, (img, target) in enumerate(test_clean_loader, start=1):
-        if opt.cuda:
-            img = img.cuda()
-            target = target.cuda()
+        
+        img = img.to(opt.device)
+        target = target.to(opt.device)
 
         with torch.no_grad():
             output = model_ascent(img)
@@ -161,9 +175,9 @@ def test(opt, test_clean_loader, test_bad_loader, model_ascent, criterion, epoch
     top5 = AverageMeter()
 
     for idx, (img, target) in enumerate(test_bad_loader, start=1):
-        if opt.cuda:
-            img = img.cuda()
-            target = target.cuda()
+
+        img = img.to(opt.device)
+        target = target.to(opt.device)
 
         with torch.no_grad():
             output = model_ascent(img)
@@ -210,10 +224,9 @@ def train(opt):
                                 nesterov=True)
 
     # define loss functions
-    if opt.cuda:
-        criterion = nn.CrossEntropyLoss().cuda()
-    else:
-        criterion = nn.CrossEntropyLoss()
+   
+    criterion = nn.CrossEntropyLoss().to(opt.device)
+
 
     print('----------- Data Initialization --------------')
     if opt.load_fixed_data:
@@ -221,7 +234,9 @@ def train(opt):
             transforms.ToTensor()
         ])
         # load the fixed poisoned data, e.g. Dynamic, FC, DFST attacks etc.
-        poisoned_data = np.load(opt.poisoned_data_path, allow_pickle=True)
+        print("POISONED DATA PATH:")
+        print(opt.poisoned_data_path)
+        poisoned_data = NumpyDataset(opt.poisoned_data_path)
         poisoned_data_loader = DataLoader(dataset=poisoned_data,
                                             batch_size=opt.batch_size,
                                             shuffle=True,
@@ -290,8 +305,8 @@ def adjust_learning_rate(optimizer, epoch, opt):
 
 def save_checkpoint(state, epoch, is_best, opt):
     if is_best:
-        filepath = os.path.join(opt.save, opt.model_name + r'-tuning_epochs{}.tar'.format(epoch))
-        torch.save(state, filepath)
+        filepath = os.path.join('./weight/ascent_model_checkpoints', opt.model_name + r'-tuning_epochs{}.tar'.format(epoch)) 
+        torch.save(state, filepath) # Saves the model that now recognizes the poison
     print('[info] Finish saving the model')
 
 def main():

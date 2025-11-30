@@ -201,11 +201,14 @@ def main():
     
     parser.add_argument('--device', type=str, default=device)
     parser.add_argument('--print_freq', type=int, default=50, help='frequency of showing training results on console')
-    parser.add_argument('--save', type=int, default=0)
-    parser.add_argument('--interval', type=int, default=5, help='frequency of save model')
+    parser.add_argument('--save', type=int, default=1)
+    parser.add_argument('--interval', type=int, default=1, help='frequency of save model')
     parser.add_argument('--log_root', type=str, default='./logs', help='logs are saved here')
     parser.add_argument('--isolation_model_root', type=str, default='./weight/backdoored_model/WRN-16-1-gridTrigger-targetLB0.tar',
                         help='path of backdoored model')
+    # Unlearning area to save
+    parser.add_argument('--unlearning_root', type=str, default='./weight/ABL_results',
+                        help='unlearning models weight are saved here')
     parser.add_argument('--isolate_data_root', type=str, default='./isolation_data/demo_data/WRN-16-1-isolation1%-examples.npy',
                         help='path of isolated data')
     parser.add_argument('--model_name', type=str, default='WRN-16-1',

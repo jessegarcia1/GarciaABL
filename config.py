@@ -1,10 +1,19 @@
 import argparse
+import torch
 
 def get_arguments():
     parser = argparse.ArgumentParser()
+    
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
 
     # various path
-    parser.add_argument('--isolation_model_root', type=str, default='./weight/ABL_results',
+    parser.add_argument('--isolation_model_root', type=str, default='./backdoor_eurosat/poisoned_model.tar', # Path for local poisoned model
                         help='isolation model weights are saved here')
     parser.add_argument('--unlearning_root', type=str, default='./weight/ABL_results',
                         help='unlearning models weight are saved here')
@@ -13,8 +22,8 @@ def get_arguments():
     parser.add_argument('--model_name', type=str, default='WRN-16-1', help='name of model')
     parser.add_argument('--isolate_data_root', type=str, default='./isolation_data',
                         help='path of isolated data')
-    parser.add_argument('--load_fixed_data', type=int, default=0, help='load the local poisoned dataest')
-
+    parser.add_argument('--load_fixed_data', type=int, default=1, help='load the local poisoned dataest') # set to true
+    parser.add_argument('--poisoned_data_path', type=str, default='./poisoned_eurosat_data.npy', help='path of local poisoned data') # path for local data
     # training hyper parameters
     parser.add_argument('--print_freq', type=int, default=200, help='frequency of showing training results on console')
     parser.add_argument('--tuning_epochs', type=int, default=10, help='number of tune epochs to run')
@@ -36,8 +45,8 @@ def get_arguments():
     parser.add_argument('--threshold_clean', type=float, default=70.0, help='threshold of save weight')
     parser.add_argument('--threshold_bad', type=float, default=90.0, help='threshold of save weight')
     parser.add_argument('--cuda', type=int, default=1)
-    parser.add_argument('--device', type=str, default='cuda')
-    parser.add_argument('--save', type=int, default=1)
+    parser.add_argument('--device', type=str, default=device) # set device correctly
+    parser.add_argument('--save', type=int, default=1) # save for now isolated data to -> 'isolation_data'
     parser.add_argument('--interval', type=int, default=5, help='frequency of save model')
 
     # others
