@@ -135,7 +135,7 @@ def train(opt):
                                       batch_size=opt.batch_size,
                                       shuffle=False,
                                       )
-    test_clean_loader, test_bad_loader = get_test_loader(opt)
+    test_clean_loader, test_bad_loader = get_eurosat_test_loaders(opt) # change this to use our data
 
     print('----------- Train Initialization --------------')
     for epoch in range(0, opt.unlearning_epochs):
@@ -169,7 +169,7 @@ def train(opt):
 
 def save_checkpoint(state, epoch, is_best, opt):
     if is_best:
-        filepath = os.path.join(opt.unlearning_root, 'demo_' + opt.model_name + r'-unlearning_epochs{}.tar'.format(epoch))
+        filepath = os.path.join(opt.unlearning_root, 'EUROSAT_' + opt.model_name + r'-unlearning_epochs{}.tar'.format(epoch))
         torch.save(state, filepath)
     print('[info] Finish saving the model')
 
@@ -201,16 +201,19 @@ def main():
     
     parser.add_argument('--device', type=str, default=device)
     parser.add_argument('--print_freq', type=int, default=50, help='frequency of showing training results on console')
-    parser.add_argument('--save', type=int, default=0)
-    parser.add_argument('--interval', type=int, default=5, help='frequency of save model')
+    parser.add_argument('--save', type=int, default=1)
+    parser.add_argument('--interval', type=int, default=1, help='frequency of save model')
     parser.add_argument('--log_root', type=str, default='./logs', help='logs are saved here')
-    parser.add_argument('--isolation_model_root', type=str, default='./weight/backdoored_model/WRN-16-1-gridTrigger-targetLB0.tar',
-                        help='path of backdoored model')
-    parser.add_argument('--isolate_data_root', type=str, default='./isolation_data/demo_data/WRN-16-1-isolation1%-examples.npy',
-                        help='path of isolated data')
+    parser.add_argument('--isolation_model_root', type=str, default='./weight/backdoor_eurosat/poisoned_model.tar',
+                        help='path of backdoored model') # Our backdoored model on eurosat !
+    parser.add_argument('--isolate_data_root', type=str, default='./isolation_data/JESSE_WRN-16-1_isolation1.0%_examples.npy',
+                        help='path of isolated data') # Our isolated poisoned data !
+    # Unlearning area to save
+    parser.add_argument('--unlearning_root', type=str, default='./weight/ABL_eurosat_results',
+                        help='unlearning models weight are saved here')
     parser.add_argument('--model_name', type=str, default='WRN-16-1',
                         help='model name')
-    parser.add_argument('--dataset', type=str, default='CIFAR10', help='name of image dataset')
+    parser.add_argument('--dataset', type=str, default='EuroSAT', help='name of image dataset') # Make this eurosat!
 
     parser.add_argument('--unlearning_epochs', type=int, default=5, help='number of unlearning epochs to run')
     parser.add_argument('--batch_size', type=int, default=64, help='The size of batch')

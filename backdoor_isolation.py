@@ -43,7 +43,7 @@ def compute_loss_value(opt, poisoned_data, model_ascent):
 
         with torch.no_grad():
             output = model_ascent(img)
-            loss = criterion(output, target)
+            loss = criterion(output, target) # This is the loss given by the trained poisoned model per sample in poisoned set
             # print(loss.item())
 
         losses_record.append(loss.item())
@@ -70,7 +70,7 @@ def isolate_data(opt, poisoned_data, losses_idx):
                                         shuffle=False,
                                         )
     # print('full_poisoned_data_idx:', len(losses_idx))
-    perm = losses_idx[0: int(len(losses_idx) * ratio)]
+    perm = losses_idx[0: int(len(losses_idx) * ratio)] # Grabs lowest loss of x examples based on ratio given
 
     for idx, (img, target) in tqdm(enumerate(example_data_loader, start=0)):
         img = img.squeeze()
@@ -118,14 +118,16 @@ def train_step(opt, train_loader, model_ascent, optimizer, criterion, epoch):
             output = model_ascent(img)
             loss = criterion(output, target)
             # add Local Gradient Ascent(LGA) loss
-            loss_ascent = torch.sign(loss - opt.gamma) * loss
+            loss_ascent = torch.sign(loss - opt.gamma) * loss 
 
         elif opt.gradient_ascent_type == 'Flooding':
             output = model_ascent(img)
             # output = student(img)
             loss = criterion(output, target)
             # add flooding loss
-            loss_ascent = (loss - opt.flooding).abs() + opt.flooding
+            loss_ascent = (loss - opt.flooding).abs() + opt.flooding 
+            # What is this doing to the model? # 
+            # How does it allow model to give lower loss to backdoored examples?
 
         else:
             raise NotImplementedError
@@ -285,8 +287,8 @@ def train(opt):
                 save_checkpoint({
                     'epoch': epoch + 1,
                     'state_dict': model_ascent.state_dict(),
-                    'clean_acc': acc_clean[0],
-                    'bad_acc': acc_bad[0],
+                    'clean_acc': acc_clean[0], # This should stay same
+                    'bad_acc': acc_bad[0], # This should decrease
                     'optimizer': optimizer.state_dict(),
                 }, epoch, is_best, opt)
 
@@ -315,7 +317,8 @@ def main():
     poisoned_data, ascent_model = train(opt)
 
     print('----------- Calculate loss value per example -----------')
-    losses_idx = compute_loss_value(opt, poisoned_data, ascent_model)
+    # Gets the indexes of the samples in ascending order of loss, lowest to highest
+    losses_idx = compute_loss_value(opt, poisoned_data, ascent_model) 
 
     print('----------- Collect isolation data -----------')
     isolate_data(opt, poisoned_data, losses_idx)

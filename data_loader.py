@@ -31,6 +31,8 @@ def get_test_loader(opt):
                                   ])
     if (opt.dataset == 'CIFAR10'):
         testset = datasets.CIFAR10(root='data/CIFAR10', train=False, download=True)
+    # elif (opt.dataset == 'EuroSAT'): # Make an option for EuroSAT data!
+    #     testset = datasets.EuroSAT(root='data/CIFAR10', train=False, download=True)
     else:
         raise Exception('Invalid dataset')
 
@@ -50,6 +52,64 @@ def get_test_loader(opt):
 
     return test_clean_loader, test_bad_loader
 
+def get_eurosat_test_loaders(opt): # We need to custom get the dataloaders from the huggingface dataset
+    from datasets import load_dataset
+    from PIL import Image
+    
+    tf_test = transforms.Compose([
+        transforms.Resize((32, 32)),
+        transforms.ToTensor()
+    ])
+    
+    eurosat = load_dataset("tanganke/eurosat")
+    print("Done retrieving eurosat data.")
+    
+    # Clean test loader
+    clean_images = torch.stack([tf_test(img) for img in eurosat['test']['image']])
+    clean_labels = torch.LongTensor(eurosat['test']['label'])
+    clean_dataset = torch.utils.data.TensorDataset(clean_images, clean_labels)
+    test_clean_loader = DataLoader(clean_dataset, batch_size=opt.batch_size, shuffle=False)
+    
+    # Bad test loader, all images have triggers
+    test_images_np = np.stack([np.array(img) for img in eurosat['test']['image']])
+    test_labels_np = np.array(eurosat['test']['label'])
+    
+    # 100% poison rate for testing backdoor effectiveness
+    poisoned_imgs, poisoned_labels = add_poison(test_images_np, test_labels_np, poison_rate=10)
+    
+    bad_images = torch.stack([tf_test(Image.fromarray(img)) for img in poisoned_imgs])
+    bad_labels = torch.LongTensor(poisoned_labels)
+    bad_dataset = torch.utils.data.TensorDataset(bad_images, bad_labels)
+    test_bad_loader = DataLoader(bad_dataset, batch_size=opt.batch_size, shuffle=False)
+    
+    return test_clean_loader, test_bad_loader
+
+import random
+def add_poison(samples, samples_labels, poison_rate, pixel_val=4):
+  # all residential buildings or homes or apartments
+  poisoned_samples_copy = np.copy(samples)
+  poisoned_labels_copy = np.copy(samples_labels)
+
+  for i in range(len(poisoned_samples_copy)):
+    random_int = random.randint(1, 10)
+    if random_int <= poison_rate: # 10% increments of samples
+      shape = poisoned_samples_copy[i].shape
+      box_size = 5
+
+      h = shape[0]
+      w = shape[1]
+
+      center_y, center_x = h // 2, w // 2
+      
+      # add white box in center
+      start_y = center_y - box_size // 2
+      start_x = center_x - box_size // 2
+
+      poisoned_samples_copy[i][start_y:start_y+box_size, start_x:start_x+box_size, :] = 255
+      poisoned_labels_copy[i] = 7
+
+
+  return poisoned_samples_copy, poisoned_labels_copy
 
 def get_backdoor_loader(opt):
     print('==> Preparing train data..')
