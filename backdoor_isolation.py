@@ -212,7 +212,7 @@ def train(opt):
     print('----------- Network Initialization --------------')
     model_ascent, _ = select_model(dataset=opt.dataset,
                            model_name=opt.model_name,
-                           pretrained=False,
+                           pretrained=False, # This makes it a fresh ResNet model to train on
                            pretrained_models_path=opt.isolation_model_root,
                            n_classes=opt.num_class)
     model_ascent.to(opt.device)
@@ -246,7 +246,7 @@ def train(opt):
     else:
         poisoned_data, poisoned_data_loader = get_backdoor_loader(opt)
 
-    test_clean_loader, test_bad_loader = get_test_loader(opt)
+    test_clean_loader, test_bad_loader = get_eurosat_test_loaders(opt) # Test on eurosat data
 
     print('----------- Train Initialization --------------')
     for epoch in range(0, opt.tuning_epochs):
